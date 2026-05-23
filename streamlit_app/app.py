@@ -4,17 +4,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-import cv2
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.pca_svd import (
-    svd_decompose,
-    compute_eigenfaces,
-    project_to_eigenspace,
-    reconstruct_from_eigenspace,
     load_olivetti_dataset,
     load_lfw_dataset,
     load_custom_selfie_dataset,
@@ -22,10 +17,9 @@ from core.pca_svd import (
     build_eigenspace_from_dataset,
     analyze_two_faces_with_dataset,
     analyze_two_faces,
-    get_singular_values_info,
 )
 from core.face_utils import (
-    load_image_from_pil, preprocess_face, detect_face, draw_face_box,
+    load_image_from_pil, preprocess_face, detect_face,
 )
 from core.similarity import compute_all_metrics, make_decision
 from PIL import Image
@@ -341,7 +335,6 @@ def get_eigenspace_custom(k):
         }
         return data, eigenspace
 
-    # Fallback ke training lokal jika model tidak ada (namun dataset lokal masih ada)
     base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Selfie & id data - public sample")
     data = load_custom_selfie_dataset(base_path, target_size=(128, 128))
     if data is None:
@@ -484,8 +477,7 @@ if use_dataset and dataset_data and eigenspace:
             target_sz = (target_size_sel, target_size_sel)
 
             face1_proc, info1 = preprocess_face(gray1, detect=detect_face_opt, target_size=target_sz)
-            
-            # Rotation Search on Photo 2 for Pose Invariance
+
             best_cos = -1.0
             best_metrics = None
             best_decision = None
@@ -493,12 +485,10 @@ if use_dataset and dataset_data and eigenspace:
             best_info2 = None
             best_result = None
 
-            # To avoid re-detecting bbox multiple times, detect once:
             bbox2 = None
             if detect_face_opt:
                 bbox2 = detect_face(gray2)
 
-            # Check if Haar Eye detected an angle for image 2
             temp_f2, temp_i2 = preprocess_face(gray2, detect=detect_face_opt, target_size=target_sz, pre_bbox=bbox2)
             
             angles_to_try = [0.0, -10.0, 10.0, -5.0, 5.0]
@@ -522,8 +512,7 @@ if use_dataset and dataset_data and eigenspace:
                 w1 = res["weights_face1"]
                 w2 = res["weights_face2"]
                 S_joint = res["singular_values_joint"]
-                
-                # Pass penalty_factor from slider to compute_all_metrics
+
                 mets = compute_all_metrics(w1, w2, f1_disp, f2_disp, S_joint, penalty_factor=penalty_factor)
                 
                 if mets["cosine_similarity_eigenspace"] > best_cos:
@@ -533,8 +522,7 @@ if use_dataset and dataset_data and eigenspace:
                     best_face2_proc = f2_proc
                     best_info2 = i2
                     mode_label = f"{m_label} | Rotasi: {i2.get('angle_used', 0.0):.1f}°"
-                    
-            # Commit the best rotation results
+
             face2_proc = best_face2_proc
             info2 = best_info2
             result = best_result
@@ -572,7 +560,6 @@ if use_dataset and dataset_data and eigenspace:
         st.divider()
         render_preprocessing_steps(info2, "Pipeline Foto Baru")
 
-        # --- SECTION 01: PIXEL MATRIX ---
         import pandas as pd
         st.markdown(f'<div class="section-title">🔢 {T.get("sec_01", "Section 01: Pixel Matrix Representation")}</div>', unsafe_allow_html=True)
         st.markdown(f"*{T.get('sec_01_desc', 'Menampilkan sub-matriks 16x16 piksel dari pojok kiri atas gambar wajah (setelah pre-processing).')}*")
@@ -592,14 +579,11 @@ if use_dataset and dataset_data and eigenspace:
             st.dataframe(df2.style.background_gradient(cmap='gray', vmin=0.0, vmax=1.0), height=300)
             st.caption(f"Shape: {face2_display.shape} | Min: {face2_display.min():.2f} | Max: {face2_display.max():.2f} | Mean: {face2_display.mean():.2f} | Std: {face2_display.std():.2f}")
 
-        # --- SECTION 02: PCA & EIGENSPACE ---
         st.markdown(f'<div class="section-title">📊 {T.get("sec_02", "Section 02: PCA & Eigenspace")}</div>', unsafe_allow_html=True)
         if use_dataset and eigenspace is not None:
             st.latex(r"C = \frac{1}{n-1}X^TX \qquad C \cdot v = \lambda \cdot v")
             st.markdown(f"*{T.get('sec_02_desc', 'Proyeksi wajah ke dalam Eigenspace yang dibangun dari dataset.')}*")
-            
-            # Since Eigenfaces were already plotted globally in the sidebar/top, 
-            # we just show the Scree Plot and Eigenvalue Top N table here for the global dataset
+
             ev_df = pd.DataFrame({
                 "Principal Component": [f"PC{i+1}" for i in range(min(10, len(eigenspace["explained_variance_ratio"])))],
                 "Eigenvalue (\u03bb)": [S_joint[i]**2 for i in range(min(10, len(S_joint)))],
@@ -623,7 +607,6 @@ if use_dataset and dataset_data and eigenspace:
         else:
             st.warning("Eigenspace tidak tersedia. Pastikan Anda memilih Dataset pada Sidebar untuk melihat PCA yang valid.")
 
-        # --- SECTION 03: SVD RECONSTRUCTION ---
         st.markdown(f'<div class="section-title">🖼️ {T.get("sec_03", "Section 03: SVD Reconstruction")}</div>', unsafe_allow_html=True)
         st.markdown(f"*{T.get('sec_03_desc', 'Dekomposisi SVD dan rekonstruksi matriks dengan $k$ komponen.')}*")
         
@@ -634,12 +617,6 @@ if use_dataset and dataset_data and eigenspace:
             
         def display_svd_recon(face, U, S, Vt, label):
             recon = reconstruct_svd(U, S, Vt, k_recon)
-            # Reconstruct is 1D if face was flattened during SVD. 
-            # In our code svd_face1 was run on flattened? No, svd_face1 might be run on 2D if we passed 2D. 
-            # Wait, run_pca_svd in main.py does SVD on 1D or 2D? 
-            # In core/pca_svd.py analyze_two_faces: U, S, Vt = np.linalg.svd(face, full_matrices=False)
-            # if face is 2D, U is (128,128), S is (128,), Vt is (128,128).
-            # So recon is 2D.
             frob_error = np.linalg.norm(face - recon, ord='fro')
             
             c1, c2 = st.columns(2)
@@ -650,8 +627,7 @@ if use_dataset and dataset_data and eigenspace:
                 disp_recon = (recon - recon.min()) / (recon.max() - recon.min() + 1e-8)
                 st.image(disp_recon, caption=f"Rekonstruksi k={k_recon}", use_container_width=True, clamp=True)
             st.caption(f"Error Frobenius ($|| A - A_k ||_F$): {frob_error:.4f}")
-            
-            # Singular values curve
+
             make_dark_plot()
             fig, ax = plt.subplots(figsize=(4, 2))
             ax.plot(range(1, min(21, len(S)+1)), S[:20], marker='.', color='#10b981')
@@ -667,7 +643,6 @@ if use_dataset and dataset_data and eigenspace:
         with col_svd2:
             display_svd_recon(face2_display, U2, S2, Vt2, T['upload_new'])
 
-        # --- SECTION 04: VECTOR PROJECTION ---
         st.markdown(f'<div class="section-title">📐 {T.get("sec_04", "Section 04: Vector Projection")}</div>', unsafe_allow_html=True)
         st.markdown(f"*{T.get('sec_04_desc', 'Bobot proyeksi PCA ke dalam Eigenspace.')}*")
         
@@ -693,7 +668,6 @@ if use_dataset and dataset_data and eigenspace:
             st.pyplot(fig, use_container_width=True)
             plt.close(fig)
 
-        # Let's add 2D scatter plot if we have at least 2 weights
         if len(w1) >= 2 and len(w2) >= 2:
             make_dark_plot()
             fig, ax = plt.subplots(figsize=(5, 3))
@@ -798,7 +772,6 @@ if use_dataset and dataset_data and eigenspace:
         st.pyplot(fig_s, use_container_width=True)
         plt.close(fig_s)
 
-    # --- SECTION 07: DYNAMIC REPORT ---
     st.markdown(f'<div class="section-title">📄 {T.get("sec_07", "Section 07: Dynamic Report")}</div>', unsafe_allow_html=True)
     
     report_text = f"""

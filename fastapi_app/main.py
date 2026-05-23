@@ -116,8 +116,8 @@ def ssim_simple(img1, img2):
 def run_pca_svd(face1: np.ndarray, face2: np.ndarray):
     f1, f2 = face1.flatten(), face2.flatten()
 
-    U1, S1, _ = np.linalg.svd(face1, full_matrices=False)
-    U2, S2, _ = np.linalg.svd(face2, full_matrices=False)
+    _, S1, _ = np.linalg.svd(face1, full_matrices=False)
+    _, S2, _ = np.linalg.svd(face2, full_matrices=False)
 
     if PRETRAINED is not None:
         ef = PRETRAINED["eigenfaces"]
@@ -191,7 +191,7 @@ def make_decision(composite: float, cos_eigen: float, threshold: float = 0.60):
     return {
         "is_same_person": bool(is_same),
         "verdict":      "Orang yang Sama" if is_same else "Orang yang Berbeda",
-        "verdict_icon": "✅" if is_same else "❌",
+        "verdict_icon": "YES" if is_same else "NO",
         "level": level, "confidence": confidence, "color": color,
         "threshold_used": threshold,
     }
@@ -205,7 +205,7 @@ async def root(request: Request):
 async def analyze(request: Request):
     try:
         if PRETRAINED is None:
-            print("⚠️ Peringatan: pretrained_eigenspace.npz tidak dimuat, akurasi akan buruk!")
+            print("[Warning] pretrained_eigenspace.npz tidak dimuat, akurasi akan buruk!")
             
         body      = await request.json()
         image1_b64 = body.get("image1")
@@ -215,8 +215,8 @@ async def analyze(request: Request):
         if not image1_b64 or not image2_b64:
             return JSONResponse({"error": "Kedua gambar diperlukan"}, status_code=400)
 
-        crop1, detected1 = detect_and_crop(image1_b64)
-        crop2, detected2 = detect_and_crop(image2_b64)
+        crop1, _ = detect_and_crop(image1_b64)
+        crop2, _ = detect_and_crop(image2_b64)
 
         face1 = process_cropped(crop1, angle=0.0)
 
