@@ -1,6 +1,3 @@
-"""
-core/__init__.py
-"""
 from .pca_svd import (
     svd_decompose,
     compute_eigenfaces,
@@ -18,7 +15,6 @@ from .face_utils import (
 )
 from .similarity import (
     cosine_similarity,
-    euclidean_distance,
     compute_all_metrics,
     make_decision,
 )
@@ -28,5 +24,5 @@ __all__ = [
     "reconstruct_from_eigenspace", "analyze_two_faces", "get_singular_values_info",
     "load_image_from_bytes", "load_image_from_pil", "preprocess_face",
     "detect_face", "draw_face_box",
-    "cosine_similarity", "euclidean_distance", "compute_all_metrics", "make_decision",
+    "cosine_similarity", "compute_all_metrics", "make_decision",
 ]
