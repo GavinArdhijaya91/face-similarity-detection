@@ -131,19 +131,6 @@ Foto Baru  ──┘
 | `framer-motion` | Animasi transisi |
 | `react-dropzone` | Drag & drop upload |
 
----
-
-## Mengapa Tidak Perlu Dataset?
-
-PCA & SVD bukan model machine learning — ini adalah **operasi matematika murni**.  
-- ❌ Tidak perlu data training ribuan foto  
-- ❌ Tidak perlu GPU  
-- ✅ Cukup upload 2 foto, matematika yang bekerja
-
-Berbeda dengan deep learning (FaceNet, ArcFace) yang butuh jutaan foto untuk training.
-
----
-
 ## Interpretasi Skor
 
 | Composite Score | Level | Interpretasi |
