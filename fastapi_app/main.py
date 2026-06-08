@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from streamlit_app.core.face_utils import detect_face, preprocess_face
 from streamlit_app.core.pca_svd import load_pretrained_eigenspace
-from streamlit_app.core.feature_extractor import analyze_two_faces_with_dataset, analyze_two_faces
+from streamlit_app.core.pca_svd import analyze_two_faces_with_dataset, analyze_two_faces
 from streamlit_app.core.similarity import compute_all_metrics
 
 
@@ -115,11 +115,11 @@ async def analyze(request: Request):
         best_result = None
         best_metrics = None
 
-        face1_proc, _ = preprocess_face(gray1, detect=False, pre_bbox=bbox1, force_angle=0.0)
+        face1_proc, _ = preprocess_face(gray1, detect=True, pre_bbox=bbox1, force_angle=0.0)
 
         for angle in [0.0, -10.0, 10.0, -5.0, 5.0]:
             for do_flip in [False, True]:
-                f2_proc_base, _ = preprocess_face(gray2, detect=False, pre_bbox=bbox2, force_angle=angle)
+                f2_proc_base, _ = preprocess_face(gray2, detect=True, pre_bbox=bbox2, force_angle=angle)
                 
                 if do_flip:
                     f2_proc = cv2.flip(f2_proc_base, 1)
