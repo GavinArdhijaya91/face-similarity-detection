@@ -119,10 +119,8 @@ def augmentasi_untuk_uji(vec_dewasa: np.ndarray) -> np.ndarray:
 
 
 def main():
-    print("=" * 65)
     print("  ENKRIPSI DATASET KELOMPOK ke .NPZ")
     print("  Sistem Face Comparison berbasis PCA (PRD v3)")
-    print("=" * 65)
     print()
 
     if not os.path.exists(PATH_SAMPEL):
@@ -208,9 +206,7 @@ def main():
         nama_anggota  = np.array(nama_anggota),   # tambahan: nama asli
     )
 
-    print("=" * 65)
     print("  BERHASIL! File tersimpan.")
-    print("=" * 65)
     print(f"  Output file      : {NAMA_OUTPUT}")
     print(f"  Jumlah anggota   : {len(y)} orang")
     print()
@@ -237,7 +233,6 @@ def main():
     print("  LANGKAH SELANJUTNYA:")
     print(f"    1. Upload '{NAMA_OUTPUT}' ke Google Colab")
     print(f"    2. Jalankan colab_pca_evaluation.py")
-    print("=" * 65)
 
 
 if __name__ == '__main__':

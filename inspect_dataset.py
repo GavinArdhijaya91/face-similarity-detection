@@ -16,10 +16,8 @@ def get_semua_gambar(folder_path):
     ]
 
 def main():
-    print("=" * 65)
     print("🔍 DIAGNOSTIC: Inspeksi Dataset Lama")
     print(f"   Path: {PATH_DATASET}")
-    print("=" * 65)
 
     if not os.path.exists(PATH_DATASET):
         print(f"\n❌ Folder '{PATH_DATASET}' tidak ditemukan!")
@@ -46,7 +44,6 @@ def main():
     }
 
     print(f"\n{'No':<6} {'Folder':<20} {'docs':<10} {'selfies':<10} {'Status'}")
-    print("-" * 65)
 
     for idx, nama_folder in enumerate(folder_list[:20]):   # tampilkan 20 pertama
         path_orang   = os.path.join(PATH_DATASET, nama_folder)
@@ -95,9 +92,7 @@ def main():
         else:                 stats['orang_selfies_multi']  += 1
 
     print()
-    print("=" * 65)
     print(" RINGKASAN STATISTIK:")
-    print("=" * 65)
     print(f"  Total orang            : {stats['total_orang']}")
     print(f"  Total foto docs (lama) : {stats['total_foto_docs']}")
     print(f"  Total foto selfies     : {stats['total_foto_selfies']}")
@@ -114,7 +109,6 @@ def main():
     n_siap = stats['total_orang'] - len(stats['orang_tanpa_docs']) - len(stats['orang_tanpa_selfies'])
 
     print()
-    print("─" * 65)
     print(f"   Orang siap dipakai (punya docs + selfies): ~{n_siap}")
     print(f"    Orang yang perlu dicek                  : {len(stats['orang_tanpa_docs']) + len(stats['orang_tanpa_selfies'])}")
 
@@ -124,9 +118,7 @@ def main():
         print(f"  Folder TANPA selfies: {stats['orang_tanpa_selfies']}")
 
     print()
-    print("=" * 65)
     print("💡 REKOMENDASI PENGGUNAAN DI COLAB:")
-    print("=" * 65)
     print(f"""
   Dataset lama ini cocok dipakai sebagai basis training TAMBAHAN
   di samping Olivetti Faces. Cara pakainya di Colab:

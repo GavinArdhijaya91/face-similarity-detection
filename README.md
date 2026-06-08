@@ -1,142 +1,54 @@
 [![Vercel](https://img.shields.io/badge/vercel-%23000000.svg?style=for-the-badge&logo=vercel&logoColor=white)](https://detection-similarity-between-old-ph.vercel.app/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-%23FE4B4B.svg?style=for-the-badge&logo=streamlit&logoColor=white)](https://face-verification-v1.streamlit.app/)
 
-# FaceMatch — Deteksi Kemiripan Foto Menggunakan PCA & SVD
+# FaceMatch: Deteksi Kemiripan Wajah Lintas Usia
 
-> **Tugas Mata Kuliah Aljabar Linear Semester 2**  
-> Implementasi *Eigenfaces* untuk mendeteksi kemiripan antara foto lama (masa kecil) dan foto baru (saat ini).
+> **Proyek Mata Kuliah Aljabar Linear Semester 2**  
+> Sistem pendeteksi kemiripan wajah menggunakan Principal Component Analysis (PCA) dan Singular Value Decomposition (SVD). Fokus utama sistem ini adalah memverifikasi identitas antara foto masa kecil dan foto saat ini (Cross-Age Face Verification).
 
----
+## 🚀 Fitur Utama
 
-## Konsep Aljabar Linear yang Diimplementasikan
+- **Pendeteksian Wajah Otomatis (Face Detection):** Menggunakan OpenCV Haar Cascades untuk memotong dan memusatkan wajah secara presisi.
+- **Ekstraksi Fitur Geometris:** Mengonversi piksel wajah menjadi vektor matematika menggunakan *Eigenfaces* (PCA).
+- **Penilaian Kemiripan (Similarity Metrics):** Menggunakan *Cosine Similarity* untuk mengukur kemiripan fitur wajah yang lebih tahan terhadap perubahan usia, serta membandingkannya dengan *Euclidean Distance*.
+- **Visualisasi Model (Eigenspace):** Sistem otomatis merender komponen utama pembentuk wajah dalam bentuk grafik dan eigenfaces visual.
 
-| Konsep | Penerapan |
-|--------|-----------|
-| **SVD**: `A = U Σ Vᵀ` | Dekomposisi matriks gambar ke komponen utama |
-| **Eigenvalue (λ)** | Mengukur seberapa penting setiap eigenface |
-| **Eigenvector (v)** | Arah komponen utama (pola dasar wajah) |
-| **Matriks Kovarians** | `C = (1/n) AᵀA` — basis untuk PCA |
-| **Proyeksi Vektor** | `w = eigenfaces @ (face - mean_face)` |
-| **Cosine Similarity** | `cos(θ) = (a·b)/(‖a‖‖b‖)` |
-| **Euclidean Distance** | `d = ‖a - b‖₂` |
+## 📁 Struktur Utama
 
----
+Proyek ini dibangun menjadi dua jenis aplikasi berbasis Python:
+1. **`streamlit_app/`**: Aplikasi antarmuka web interaktif menggunakan Streamlit untuk demo lokal.
+2. **`fastapi_app/`**: Backend API yang tangguh menggunakan FastAPI, siap diintegrasikan dengan frontend Vercel/Next.js.
 
-## Arsitektur Folder
+## 🛠️ Cara Menjalankan (Lokal)
 
-```
-detection-similarity-between-old-photos-and-new-photos/
-│
-├── streamlit_app/              ← 🐍 Versi Streamlit (lokal)
-│   ├── app.py                  ← Entry point utama
-│   ├── core/
-│   │   ├── face_utils.py          ← Logika PCA & SVD (NumPy murni)
-│   │   ├── feature_extractor.py       ← Preprocessing OpenCV
-│   │   └── pca_svd.py       ← Cosine similarity, SSIM, composite score
-|   |   └── similarity.py       ← Cosine similarity, SSIM, composite score
-│   └── requirements.txt
-│
-├── fastapi_app/            
-│   ├── templates/
-│   │   └── index.html          ← Halaman utama dengan visualisasi
-|   ├── main.py
-|
-├── api/            
-│   ├── index.py
-│
-└── README.md
-└── LICENSE
-└── vercel.json
-```
-
----
-
-## Cara Menjalankan
-
-### Versi Streamlit (Lokal)
-
+### 1. Menjalankan Versi Streamlit
+Buka terminal dan jalankan perintah berikut:
 ```bash
 cd streamlit_app
 pip install -r requirements.txt
 streamlit run app.py
 ```
+Aplikasi dapat diakses melalui browser di: `http://localhost:8501`
 
-Buka browser: `http://localhost:8501`
-
-### Versi Vercel
-
+### 2. Menjalankan Versi FastAPI Backend
+Buka terminal dan jalankan perintah berikut:
 ```bash
 cd fastapi_app
-uvicorn main:app
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
+Aplikasi dapat diakses melalui browser di: `http://localhost:8000`
 
-### Deploy ke Vercel:
+## 🧠 Algoritma & Konsep Pembelajaran
 
-```bash
-npm install -g vercel
-vercel --prod
-```
+Sistem ini mengeksplorasi tantangan **Semantic Gap** dalam Computer Vision:
+- PCA dilatih menggunakan lebih dari 3.000 foto gabungan dari dataset Olivetti, LFW (Labeled Faces in the Wild), FG-NET Aging Database, dan sampel wajah pribadi.
+- Hasil pengujian menunjukkan bahwa PCA murni memiliki akurasi 100% untuk mendeteksi wajah di usia yang sama (Skenario A).
+- Untuk perbandingan lintas usia dari masa kecil ke dewasa (Skenario B), metrik *Cosine Similarity* terbukti jauh lebih stabil daripada metrik jarak Euclidean biasa.
 
----
-
-## Cara Kerja Pipeline
-
-```
-Foto Lama  ──┐
-              ├──► Grayscale → Haar Cascade → Crop → Resize 128×128 → Normalize
-Foto Baru  ──┘
-                    │
-                    ▼
-             Stack jadi matriks (2 × 16384)
-                    │
-                    ▼
-             SVD: A = U Σ Vᵀ  ←── Eigenfaces = baris Vᵀ
-                    │
-                    ▼
-             Proyeksi: w = eigenfaces @ (face - mean_face)
-                    │
-            ┌───────┴───────┐
-            ▼               ▼
-       w₁ (foto lama)  w₂ (foto baru)
-            │               │
-            └───────┬───────┘
-                    ▼
-         Cosine Similarity: cos(θ) = (w₁·w₂)/(‖w₁‖‖w₂‖)
-         Euclidean Distance: d = ‖w₁ - w₂‖₂
-         SSIM, Composite Score
-                    │
-                    ▼
-         score ≥ threshold → ✅ Orang yang Sama
-         score < threshold → ❌ Orang yang Berbeda
-```
-
----
-
-## Dependencies
-
-### Python (Streamlit & API)
-| Library | Peran |
-|---------|-------|
-| `numpy` | SVD (`np.linalg.svd`), operasi matriks |
-| `opencv-python` | Deteksi wajah (Haar Cascade), preprocessing |
-| `Pillow` | Load & konversi gambar |
-| `matplotlib` | Visualisasi eigenfaces & grafik |
-| `streamlit` | UI web interaktif |
-
-### JavaScript (Vercel)
-| Library | Peran |
-|---------|-------|
-| `next` | Framework React SSR |
-| `recharts` | Grafik singular values & variance |
-| `framer-motion` | Animasi transisi |
-| `react-dropzone` | Drag & drop upload |
-
-## Interpretasi Skor
-
-| Composite Score | Level | Interpretasi |
-|----------------|-------|--------------|
-| ≥ 95% | Identik | Hampir pasti foto yang sama |
-| ≥ 85% | Sangat Mirip | Kemungkinan besar orang yang sama |
-| ≥ 70% | Mirip | Bisa orang yang sama (threshold default) |
-| ≥ 55% | Kurang Mirip | Tidak pasti |
-| < 55% | Tidak Mirip | Kemungkinan besar orang berbeda |
+## 📦 Teknologi yang Digunakan
+- **Python 3**
+- **NumPy & Scikit-Learn** (Komputasi Matriks, SVD, dan PCA)
+- **OpenCV** (Computer Vision & Haar Cascade)
+- **FastAPI** (Backend Web Server)
+- **Streamlit** (UI/UX Interaktif)

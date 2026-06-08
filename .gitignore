@@ -206,4 +206,5 @@ Selfie & ID Data - Sample/
 PCA.md
 PRD_FaceComparison_PCA_v3.md
 *.npz
+privasi_kelompok_100x100.npz
 !pretrained_eigenspace.npz

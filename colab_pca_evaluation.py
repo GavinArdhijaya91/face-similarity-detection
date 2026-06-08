@@ -19,9 +19,7 @@ N_KOMPONEN_PCA      = 100
 THRESHOLD_EUCLIDEAN = 15.0
 THRESHOLD_COSINE    = 0.70
 
-print("=" * 65)
-print("  Konfigurasi sistem (v2 — improved accuracy)")
-print("=" * 65)
+print("  Konfigurasi sistem (v2 - improved accuracy)")
 print(f"   PCA komponen    : {N_KOMPONEN_PCA}")
 print(f"   Threshold Eucl  : <= {THRESHOLD_EUCLIDEAN}")
 print(f"   Threshold Cosine: >= {THRESHOLD_COSINE}")
@@ -29,7 +27,6 @@ print(f"   Threshold Cosine: >= {THRESHOLD_COSINE}")
 
 print("\n" + "=" * 65)
 print(" STEP 1: Memuat Olivetti Faces...")
-print("=" * 65)
 
 olivetti   = fetch_olivetti_faces()
 y_olivetti = olivetti.target
@@ -59,7 +56,7 @@ except Exception as e:
 
 
 print("\n STEP 1.7: Memuat FG-NET Aging Database...")
-print("   (Dataset Lintas Usia asli — mendownload dari internet...)")
+print("   (Dataset Lintas Usia asli - mendownload dari internet...)")
 import os
 import urllib.request
 import zipfile
@@ -118,7 +115,6 @@ except Exception as e:
 
 print("\n" + "=" * 65)
 print(" STEP 2: Memuat dataset kelompok dari .npz...")
-print("=" * 65)
 
 try:
     data          = np.load(NAMA_NPZ)
@@ -156,7 +152,6 @@ except FileNotFoundError:
 
 print("\n" + "=" * 65)
 print(" STEP 3: Augmentasi data training kelompok...")
-print("=" * 65)
 
 def augment_5x(vec: np.ndarray) -> list:
     """Buat 5 variasi dari 1 vektor foto (100x100 flatten)."""
@@ -185,7 +180,6 @@ print(f"   Kelompok setelah aug : {X_kel_aug.shape[0]} foto (5x lipat)")
 
 print("\n" + "=" * 65)
 print(f" STEP 4: Gabungkan data & latih PCA ({N_KOMPONEN_PCA} komponen)...")
-print("=" * 65)
 
 X_train_total = np.vstack([X_olivetti, X_lfw, X_fgnet, X_kel_aug])
 y_train_total = np.concatenate([y_olivetti, y_lfw, y_fgnet, y_kel_aug])
@@ -266,10 +260,8 @@ def hitung_kemiripan_per_identitas(vec_query, X_db, y_db):
 
 def evaluasi_skenario(X_uji_pca, nama_skenario, deskripsi):
     print()
-    print("=" * 70)
     print(f" EVALUASI: {nama_skenario}")
     print(f"   {deskripsi}")
-    print("=" * 70)
 
     benar_e = benar_c = 0
     total   = len(X_uji_pca)
@@ -315,7 +307,6 @@ def evaluasi_skenario(X_uji_pca, nama_skenario, deskripsi):
     akurasi_c = (benar_c / total) * 100
 
     print()
-    print("─" * 70)
     print(f" KESIMPULAN [{nama_skenario}]:")
     print(f"   Benar/Total Euclidean : {benar_e}/{total}")
     print(f"   Benar/Total Cosine    : {benar_c}/{total}")
@@ -328,32 +319,28 @@ def evaluasi_skenario(X_uji_pca, nama_skenario, deskripsi):
         print(f"   Cosine unggul (+{akurasi_c - akurasi_e:.1f}%)")
     else:
         print(f"   Kedua metrik setara!")
-    print("─" * 70)
 
     return {'nama': nama_skenario, 'akurasi_e': akurasi_e, 'akurasi_c': akurasi_c, 'detail': hasil_detail}
 
 
 print("\n" + "=" * 65)
 print(" STEP 5: Evaluasi Skenario A & B...")
-print("=" * 65)
 
 hasil_A = evaluasi_skenario(
     X_test_sama_pca,
-    "SKENARIO A — USIA SAMA",
+    "SKENARIO A - USIA SAMA",
     "Foto dewasa (augmentasi) vs database dewasa training"
 )
 
 hasil_B = evaluasi_skenario(
     X_test_lintas_pca,
-    "SKENARIO B — LINTAS USIA",
+    "SKENARIO B - LINTAS USIA",
     "Foto masa kecil vs database foto dewasa"
 )
 
 
 print()
-print("=" * 70)
 print(" LAPORAN PERBANDINGAN FINAL: SKENARIO A vs SKENARIO B")
-print("=" * 70)
 print()
 print(f"  {'Metrik':<30} {'Skenario A':>14} {'Skenario B':>14} {'Gap':>10}")
 print(f"  {'-' * 70}")
@@ -384,10 +371,9 @@ else:
     print(f"   Gap Cosine tidak signifikan.")
 
 if MODE_SIMULASI:
-    print("\n   PERHATIAN: Hasil MODE SIMULASI — data tidak nyata!")
+    print("\n   PERHATIAN: Hasil MODE SIMULASI - data tidak nyata!")
 
 print()
-print("=" * 70)
 
 
 print("\n Membuat visualisasi...")
@@ -395,7 +381,7 @@ print("\n Membuat visualisasi...")
 rows = 10
 cols = N_KOMPONEN_PCA // rows
 fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2))
-fig.suptitle(f'{N_KOMPONEN_PCA} Eigenfaces — Komponen Utama PCA\n'
+fig.suptitle(f'{N_KOMPONEN_PCA} Eigenfaces - Komponen Utama PCA\n'
              f'(Variance: {variance_total:.1f}%)', fontsize=14, fontweight='bold')
 for i, ax in enumerate(axes.flat):
     if i < N_KOMPONEN_PCA:
@@ -467,4 +453,3 @@ print("   Disimpan: perbandingan_akurasi.png")
 
 print()
 print("Semua visualisasi selesai!")
-print("=" * 70)
