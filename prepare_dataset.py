@@ -32,22 +32,28 @@ def cari_file_fleksibel(folder: str, kandidat_nama: list) -> str | None:
     return None
 
 
+from streamlit_app.core.face_utils import align_face_lbf
+
 cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 face_cascade = cv2.CascadeClassifier(cascade_path)
 
 
 def detect_and_crop_face(gray_img: np.ndarray) -> np.ndarray:
     """
-    Mendeteksi wajah dari gambar.
-    Jika terdeteksi, kembalikan crop area wajah dengan sedikit padding.
-    Jika tidak terdeteksi, kembalikan gambar asli sebagai fallback.
+    Mendeteksi wajah dari gambar dan mencoba melakukan LBF Alignment.
+    Jika LBF gagal, kembalikan crop area wajah dengan sedikit padding.
+    Jika wajah tidak terdeteksi, kembalikan gambar asli sebagai fallback.
     """
     faces = face_cascade.detectMultiScale(
         gray_img, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
     )
     if len(faces) > 0:
-        x, y, w, h = faces[0]
+        bbox = faces[0]
+        aligned_face, success = align_face_lbf(gray_img, bbox, TARGET_SIZE)
+        if success:
+            return aligned_face
 
+        x, y, w, h = bbox
         pad_x, pad_y = int(w * 0.1), int(h * 0.1)
         x1 = max(0, x - pad_x)
         y1 = max(0, y - pad_y)

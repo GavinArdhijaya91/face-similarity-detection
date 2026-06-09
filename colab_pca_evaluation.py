@@ -1,9 +1,15 @@
 import sys
 import warnings
+import os
+import random
+import tarfile
+import urllib.request
+import zipfile
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from skimage.feature import hog, local_binary_pattern
 from sklearn.datasets import fetch_lfw_people, fetch_olivetti_faces
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
@@ -104,15 +110,50 @@ try:
 
                 faces = face_cascade.detectMultiScale(img, 1.1, 5, minSize=(30, 30))
                 if len(faces) > 0:
-                    x, y, w, h = faces[0]
-                    pad_x, pad_y = int(w * 0.1), int(h * 0.1)
-                    x1 = max(0, x - pad_x)
-                    y1 = max(0, y - pad_y)
-                    x2 = min(img.shape[1], x + w + pad_x)
-                    y2 = min(img.shape[0], y + h + pad_y)
-                    img = img[y1:y2, x1:x2]
-
-                img_resized = cv2.resize(img, (100, 100))
+                    bbox = faces[0]
+                    
+                    # Coba SDM Landmark Alignment (LBF)
+                    if not os.path.exists("lbfmodel.yaml"):
+                        print("    Downloading lbfmodel.yaml...")
+                        urllib.request.urlretrieve("https://raw.githubusercontent.com/kurnianggoro/GSOC2017/master/data/lbfmodel.yaml", "lbfmodel.yaml")
+                    
+                    facemark = cv2.face.createFacemarkLBF()
+                    facemark.loadModel("lbfmodel.yaml")
+                    ok, landmarks = facemark.fit(img, np.array([[bbox[0], bbox[1], bbox[2], bbox[3]]]))
+                    
+                    if ok and len(landmarks) > 0:
+                        pts = landmarks[0][0]
+                        left_eye = np.mean(pts[36:42], axis=0)
+                        right_eye = np.mean(pts[42:48], axis=0)
+                        dy = right_eye[1] - left_eye[1]
+                        dx = right_eye[0] - left_eye[0]
+                        angle = np.degrees(np.arctan2(dy, dx))
+                        dist = np.sqrt(dx**2 + dy**2)
+                        
+                        target_size = (100, 100)
+                        desired_dist = target_size[0] * 0.40
+                        scale = desired_dist / max(dist, 1.0)
+                        
+                        eye_center = (int((left_eye[0] + right_eye[0]) // 2), int((left_eye[1] + right_eye[1]) // 2))
+                        M = cv2.getRotationMatrix2D(eye_center, angle, scale)
+                        
+                        t_x = target_size[0] * 0.50
+                        t_y = target_size[1] * 0.35
+                        M[0, 2] += (t_x - eye_center[0])
+                        M[1, 2] += (t_y - eye_center[1])
+                        
+                        img_resized = cv2.warpAffine(img, M, target_size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+                    else:
+                        x, y, w, h = bbox
+                        pad_x, pad_y = int(w * 0.1), int(h * 0.1)
+                        x1 = max(0, x - pad_x)
+                        y1 = max(0, y - pad_y)
+                        x2 = min(img.shape[1], x + w + pad_x)
+                        y2 = min(img.shape[0], y + h + pad_y)
+                        img = img[y1:y2, x1:x2]
+                        img_resized = cv2.resize(img, (100, 100))
+                else:
+                    img_resized = cv2.resize(img, (100, 100))
                 X_fgnet.append((img_resized.astype(np.float32) / 255.0).flatten())
                 y_fgnet.append(sub_id)
                 age_fgnet.append(age)

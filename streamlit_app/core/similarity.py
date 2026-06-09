@@ -68,7 +68,7 @@ def compute_all_metrics(
     w2_clean = w2s[3:] if len(w2s) > 3 else w2s
     euc_d = float(np.linalg.norm(w1_clean - w2_clean))
 
-    euc_penalty = min(0.05, 0.001 * euc_d)
+    euc_penalty = min(penalty_factor, 0.001 * euc_d)
     euc_sim = 1.0 - euc_penalty  
 
     score_pix = max(0.0, float(cos_eigen) - euc_penalty)
@@ -96,26 +96,19 @@ def compute_all_metrics(
     )
 
     if use_fusion:
-        s_lbp = S_lbp if S_lbp is not None else np.ones_like(weights1_lbp)
-        w1_lbp_s = weights1_lbp / (s_lbp**0.5 + 1e-8)
-        w2_lbp_s = weights2_lbp / (s_lbp**0.5 + 1e-8)
-
-        cos_lbp = float(custom_weighted_cosine_sim(w1_lbp_s, w2_lbp_s))
-        wl1_clean = w1_lbp_s[3:] if len(w1_lbp_s) > 3 else w1_lbp_s
-        wl2_clean = w2_lbp_s[3:] if len(w2_lbp_s) > 3 else w2_lbp_s
+        # LBP dan HOG sudah di-whiten di pca_svd.py, jadi langsung pakai
+        cos_lbp = float(custom_weighted_cosine_sim(weights1_lbp, weights2_lbp))
+        wl1_clean = weights1_lbp[3:] if len(weights1_lbp) > 3 else weights1_lbp
+        wl2_clean = weights2_lbp[3:] if len(weights2_lbp) > 3 else weights2_lbp
         d_lbp = float(np.linalg.norm(wl1_clean - wl2_clean))
-        penalty_lbp = min(0.05, 0.001 * d_lbp)
+        penalty_lbp = min(penalty_factor, 0.001 * d_lbp)
         score_lbp = max(0.0, float(cos_lbp) - penalty_lbp)
 
-        s_hog = S_hog if S_hog is not None else np.ones_like(weights1_hog)
-        w1_hog_s = weights1_hog / (s_hog**0.5 + 1e-8)
-        w2_hog_s = weights2_hog / (s_hog**0.5 + 1e-8)
-
-        cos_hog = float(custom_weighted_cosine_sim(w1_hog_s, w2_hog_s))
-        wh1_clean = w1_hog_s[3:] if len(w1_hog_s) > 3 else w1_hog_s
-        wh2_clean = w2_hog_s[3:] if len(w2_hog_s) > 3 else w2_hog_s
+        cos_hog = float(custom_weighted_cosine_sim(weights1_hog, weights2_hog))
+        wh1_clean = weights1_hog[3:] if len(weights1_hog) > 3 else weights1_hog
+        wh2_clean = weights2_hog[3:] if len(weights2_hog) > 3 else weights2_hog
         d_hog = float(np.linalg.norm(wh1_clean - wh2_clean))
-        penalty_hog = min(0.05, 0.001 * d_hog)
+        penalty_hog = min(penalty_factor, 0.001 * d_hog)
         score_hog = max(0.0, float(cos_hog) - penalty_hog)
 
         total_w = alpha + beta + gamma
