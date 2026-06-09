@@ -1,14 +1,16 @@
 import io
+import os
 from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 from PIL import Image
 
-TARGET_SIZE = (128, 128)
+TARGET_SIZE = (100, 100)
 HAAR_FRONTAL = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 HAAR_PROFILE = cv2.data.haarcascades + "haarcascade_profileface.xml"
 HAAR_EYE = cv2.data.haarcascades + "haarcascade_eye.xml"
+LBF_MODEL_PATH = "lbfmodel.yaml"
 
 
 def load_image_from_bytes(image_bytes: bytes) -> np.ndarray:
@@ -29,6 +31,48 @@ def detect_face(gray_image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
         if len(faces) > 0:
             return tuple(sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0])
     return None
+
+
+def align_face_lbf(gray_image: np.ndarray, bbox: Tuple[int, int, int, int], target_size: Tuple[int, int] = TARGET_SIZE) -> Tuple[np.ndarray, bool]:
+    """
+    SDM (Supervised Descent Method) LBF Alignment.
+    Memutar, menyesuaikan skala, dan mentranslasi wajah sehingga mata selalu jatuh pada koordinat piksel yang absolut.
+    """
+    if not hasattr(cv2, 'face') or not os.path.exists(LBF_MODEL_PATH):
+        return gray_image, False
+        
+    facemark = cv2.face.createFacemarkLBF()
+    facemark.loadModel(LBF_MODEL_PATH)
+    
+    x, y, w, h = bbox
+    ok, landmarks = facemark.fit(gray_image, np.array([[x, y, w, h]]))
+    if not ok or len(landmarks) == 0:
+        return gray_image, False
+        
+    pts = landmarks[0][0]
+    left_eye = np.mean(pts[36:42], axis=0)
+    right_eye = np.mean(pts[42:48], axis=0)
+    
+    dy = right_eye[1] - left_eye[1]
+    dx = right_eye[0] - left_eye[0]
+    angle = np.degrees(np.arctan2(dy, dx))
+    
+    dist = np.sqrt(dx**2 + dy**2)
+    # Jarak antar mata diset konstan 40% dari lebar gambar akhir
+    desired_dist = target_size[0] * 0.40
+    scale = desired_dist / max(dist, 1.0)
+    
+    eye_center = (int((left_eye[0] + right_eye[0]) // 2), int((left_eye[1] + right_eye[1]) // 2))
+    M = cv2.getRotationMatrix2D(eye_center, angle, scale)
+    
+    # Translasi: geser pusat mata ke koordinat X=50%, Y=35% dari gambar akhir
+    t_x = target_size[0] * 0.50
+    t_y = target_size[1] * 0.35
+    M[0, 2] += (t_x - eye_center[0])
+    M[1, 2] += (t_y - eye_center[1])
+    
+    aligned_face = cv2.warpAffine(gray_image, M, target_size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    return aligned_face, True
 
 
 def detect_eyes_and_angle(gray_crop: np.ndarray) -> Tuple[float, bool]:
@@ -106,24 +150,17 @@ def preprocess_face(
         if bbox is not None:
             info["face_detected"] = True
             info["bbox"] = bbox
-            face_crop = crop_face(gray_image, bbox)
-            info["steps"]["crop"] = face_crop.copy()
-
-    angle_to_use = force_angle if force_angle is not None else 0.0
-    info["angle_used"] = angle_to_use
-
-    if angle_to_use != 0.0:
-        h, w = face_crop.shape[:2]
-        center = (w // 2, h // 2)
-        M = cv2.getRotationMatrix2D(center, angle_to_use, 1.0)
-        face_crop = cv2.warpAffine(
-            face_crop,
-            M,
-            (w, h),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REPLICATE,
-        )
-    info["steps"]["aligned"] = face_crop.copy()
+            
+            aligned_face, success = align_face_lbf(gray_image, bbox, target_size)
+            if success:
+                face_crop = aligned_face
+                info["steps"]["crop"] = face_crop.copy()
+                info["steps"]["aligned"] = face_crop.copy()
+                info["eye_aligned"] = True
+            else:
+                face_crop = crop_face(gray_image, bbox)
+                info["steps"]["crop"] = face_crop.copy()
+                info["steps"]["aligned"] = face_crop.copy()
 
     clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(16, 16))
     face_crop = clahe.apply(face_crop)
@@ -132,7 +169,11 @@ def preprocess_face(
     if blur:
         face_crop = apply_gaussian_blur(face_crop)
 
-    resized = cv2.resize(face_crop, target_size, interpolation=cv2.INTER_AREA)
+    if face_crop.shape[:2] != target_size:
+        resized = cv2.resize(face_crop, target_size, interpolation=cv2.INTER_AREA)
+    else:
+        resized = face_crop
+
     info["steps"]["final"] = resized.copy()
 
     normalized = resized.astype(np.float64) / 255.0
