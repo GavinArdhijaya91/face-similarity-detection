@@ -62,9 +62,10 @@ def compute_all_metrics(
     gamma: float = 0.15,
 ) -> Dict[str, float]:
 
-    s_j = S_joint if S_joint is not None else np.ones_like(weights1)
-    w1s = weights1 / (s_j ** 0.5 + 1e-8)
-    w2s = weights2 / (s_j ** 0.5 + 1e-8)
+    # Whitening sekarang sudah dilakukan di pca_svd.py (tepat setelah proyeksi eigenspace).
+    # Tidak perlu Mahalanobis scaling lagi di sini, cukup pakai weights apa adanya.
+    w1s = weights1.astype(np.float64)
+    w2s = weights2.astype(np.float64)
     
     cos_eigen = float(custom_weighted_cosine_sim(w1s, w2s))
  

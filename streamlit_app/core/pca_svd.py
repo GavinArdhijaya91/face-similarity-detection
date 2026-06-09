@@ -133,14 +133,21 @@ def load_pretrained_eigenspace(filepath: str) -> Optional[Dict]:
         n     = int(data['n_samples'].item() if data['n_samples'].ndim == 0 else data['n_samples'][0])
         k     = int(data['k_components'].item() if data['k_components'].ndim == 0 else data['k_components'][0])
         shape = tuple(int(x) for x in data['image_shape'])
+        sv    = data['singular_values']
+
+        # Sklearn PCA(whiten=True) membagi proyeksi dengan sqrt(explained_variance_)
+        # = singular_values / sqrt(n_samples - 1)
+        # Kita simpan whiten_scale agar inferensi bisa menyamakan ruang vektor dengan training.
+        whiten_scale = sv / np.sqrt(max(1, n - 1))
 
         result = {
             "mean_face"               : data['mean_face'],
             "eigenfaces"              : data['eigenfaces'],
-            "singular_values"         : data['singular_values'],
+            "singular_values"         : sv,
+            "whiten_scale"            : whiten_scale,
             "explained_variance_pct"  : data['explained_variance_pct'],
             "explained_variance_ratio": data['explained_variance_pct'] / 100.0,
-            "eigenvalues"             : (data['singular_values'] ** 2) / max(1, n),
+            "eigenvalues"             : (sv ** 2) / max(1, n),
             "n_samples"               : n,
             "n_components"            : k,
             "image_shape"             : shape,
@@ -149,15 +156,19 @@ def load_pretrained_eigenspace(filepath: str) -> Optional[Dict]:
         }
 
         if 'mean_lbp' in data:
-            result["mean_lbp"]         = data['mean_lbp']
-            result["eigenfaces_lbp"]   = data['eigenfaces_lbp']
-            result["singular_values_lbp"] = data['singular_values_lbp']
-            result["feature_mode"]     = "fusion"
+            sv_lbp = data['singular_values_lbp']
+            result["mean_lbp"]             = data['mean_lbp']
+            result["eigenfaces_lbp"]       = data['eigenfaces_lbp']
+            result["singular_values_lbp"]  = sv_lbp
+            result["whiten_scale_lbp"]     = sv_lbp / np.sqrt(max(1, n - 1))
+            result["feature_mode"]         = "fusion"
 
         if 'mean_hog' in data:
-            result["mean_hog"]         = data['mean_hog']
-            result["eigenfaces_hog"]   = data['eigenfaces_hog']
-            result["singular_values_hog"] = data['singular_values_hog']
+            sv_hog = data['singular_values_hog']
+            result["mean_hog"]             = data['mean_hog']
+            result["eigenfaces_hog"]       = data['eigenfaces_hog']
+            result["singular_values_hog"]  = sv_hog
+            result["whiten_scale_hog"]     = sv_hog / np.sqrt(max(1, n - 1))
 
         n_str = f"{n} foto"
         mode  = result["feature_mode"]
@@ -331,6 +342,13 @@ def analyze_two_faces_with_dataset(
     w1_pix  = project_to_eigenspace(f1_pix, ef_pix, mf_pix)
     w2_pix  = project_to_eigenspace(f2_pix, ef_pix, mf_pix)
 
+    # PERBAIKAN Bug 4: Terapkan whitening yang sama persis dengan sklearn PCA(whiten=True).
+    # Tanpa ini, inferensi berada di ruang vektor yang berbeda dari training.
+    ws_pix = eigenspace.get("whiten_scale")
+    if ws_pix is not None:
+        w1_pix = w1_pix / (ws_pix + 1e-8)
+        w2_pix = w2_pix / (ws_pix + 1e-8)
+
     r1 = reconstruct_from_eigenspace(w1_pix, ef_pix, mf_pix).reshape(target_size)
     r2 = reconstruct_from_eigenspace(w2_pix, ef_pix, mf_pix).reshape(target_size)
 
@@ -365,16 +383,28 @@ def analyze_two_faces_with_dataset(
         f2_lbp = extract_lbp_fast(face2_r)
         ef_lbp = eigenspace["eigenfaces_lbp"]
         mf_lbp = eigenspace["mean_lbp"]
-        result["weights_face1_lbp"] = project_to_eigenspace(f1_lbp, ef_lbp, mf_lbp)
-        result["weights_face2_lbp"] = project_to_eigenspace(f2_lbp, ef_lbp, mf_lbp)
+        w1_lbp = project_to_eigenspace(f1_lbp, ef_lbp, mf_lbp)
+        w2_lbp = project_to_eigenspace(f2_lbp, ef_lbp, mf_lbp)
+        ws_lbp = eigenspace.get("whiten_scale_lbp")
+        if ws_lbp is not None:
+            w1_lbp = w1_lbp / (ws_lbp + 1e-8)
+            w2_lbp = w2_lbp / (ws_lbp + 1e-8)
+        result["weights_face1_lbp"] = w1_lbp
+        result["weights_face2_lbp"] = w2_lbp
         result["singular_values_lbp"] = eigenspace.get("singular_values_lbp")
 
         f1_hog = extract_hog_features(face1_r)
         f2_hog = extract_hog_features(face2_r)
         ef_hog = eigenspace["eigenfaces_hog"]
         mf_hog = eigenspace["mean_hog"]
-        result["weights_face1_hog"] = project_to_eigenspace(f1_hog, ef_hog, mf_hog)
-        result["weights_face2_hog"] = project_to_eigenspace(f2_hog, ef_hog, mf_hog)
+        w1_hog = project_to_eigenspace(f1_hog, ef_hog, mf_hog)
+        w2_hog = project_to_eigenspace(f2_hog, ef_hog, mf_hog)
+        ws_hog = eigenspace.get("whiten_scale_hog")
+        if ws_hog is not None:
+            w1_hog = w1_hog / (ws_hog + 1e-8)
+            w2_hog = w2_hog / (ws_hog + 1e-8)
+        result["weights_face1_hog"] = w1_hog
+        result["weights_face2_hog"] = w2_hog
         result["singular_values_hog"] = eigenspace.get("singular_values_hog")
 
     return result

@@ -119,7 +119,10 @@ def preprocess_face(
         face_crop = cv2.warpAffine(face_crop, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
         info["steps"]["aligned"] = face_crop.copy()
 
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    # CLAHE: clipLimit diturunkan dari 2.0 ke 1.5 agar tidak terlalu agresif
+    # mengubah distribusi piksel foto bayi (low-contrast) vs foto dewasa (high-contrast).
+    # tileGridSize diperbesar agar efeknya lebih halus/natural.
+    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(16, 16))
     face_crop = clahe.apply(face_crop)
     info["steps"]["equalized"] = face_crop.copy()
 

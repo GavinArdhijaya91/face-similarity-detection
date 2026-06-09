@@ -102,9 +102,12 @@ def _hog_numpy(
 
 
 def extract_pixel_features(image: np.ndarray) -> np.ndarray:
-    flat = image.flatten().astype(np.float64)
-    norm = np.linalg.norm(flat)
-    return flat / (norm + 1e-8)
+    # PENTING: Jangan L2-normalize di sini!
+    # Training di colab_pca_evaluation.py hanya membagi /255 (range [0,1]),
+    # tidak ada L2-normalization. Kalau kita L2-normalize saat inferensi,
+    # vektor berada di "alam semesta" yang berbeda → skor PCA kacau.
+    # Gambar yang masuk ke sini sudah [0,1] dari preprocess_face().
+    return image.flatten().astype(np.float64)
 
 
 def extract_all_features(image: np.ndarray) -> dict:
