@@ -104,11 +104,9 @@ def preprocess_face(
     angle_to_use = 0.0
     if force_angle is not None:
         angle_to_use = force_angle
+   
     elif info["face_detected"]:
-        detected_angle, eye_success = detect_eyes_and_angle(face_crop)
-        if eye_success:
-            angle_to_use = detected_angle
-            info["eye_aligned"] = True
+        pass
             
     info["angle_used"] = angle_to_use
             
@@ -119,9 +117,6 @@ def preprocess_face(
         face_crop = cv2.warpAffine(face_crop, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
         info["steps"]["aligned"] = face_crop.copy()
 
-    # CLAHE: clipLimit diturunkan dari 2.0 ke 1.5 agar tidak terlalu agresif
-    # mengubah distribusi piksel foto bayi (low-contrast) vs foto dewasa (high-contrast).
-    # tileGridSize diperbesar agar efeknya lebih halus/natural.
     clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(16, 16))
     face_crop = clahe.apply(face_crop)
     info["steps"]["equalized"] = face_crop.copy()
