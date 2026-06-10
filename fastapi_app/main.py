@@ -64,13 +64,13 @@ def decode_b64_image(contents: str) -> np.ndarray:
 
 def make_decision(composite: float, threshold: float = 0.60):
     is_same = composite >= threshold
-    if composite >= 0.85:
+    if composite >= 0.80:
         level, confidence, color = "Sangat Mirip", "Sangat Tinggi", "#10b981"
-    elif composite >= 0.75:
+    elif composite >= 0.70:
         level, confidence, color = "Mirip", "Tinggi", "#22c55e"
-    elif composite >= 0.65:
+    elif composite >= 0.60:
         level, confidence, color = "Cukup Mirip", "Sedang", "#f59e0b"
-    elif composite >= 0.50:
+    elif composite >= 0.45:
         level, confidence, color = "Kurang Mirip", "Rendah", "#f97316"
     else:
         level, confidence, color = "Tidak Mirip", "Sangat Rendah", "#ef4444"
@@ -98,7 +98,7 @@ def sv_info(S):
     ]
 
 
-# --- ENDPOINTS ---
+# ini adalah endpoint sebagai penghubung ke UI Website berbasis HTML (aplikasi berbasis FastAPI yang di-deploy ke Vercel)
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
@@ -126,7 +126,6 @@ async def analyze(request: Request):
         bbox1 = detect_face(gray1)
         bbox2 = detect_face(gray2)
 
-        # Fallback to entire image if no face detected
         if not bbox1:
             H1, W1 = gray1.shape
             bbox1 = (0, 0, W1, H1)
@@ -134,7 +133,6 @@ async def analyze(request: Request):
             H2, W2 = gray2.shape
             bbox2 = (0, 0, W2, H2)
 
-        # Loop pre-processing and comparison with multiple angles
         best_score = -1.0
         best_result = None
         best_metrics = None
@@ -165,7 +163,6 @@ async def analyze(request: Request):
                 w2 = res["weights_face2"]
                 S_joint = res["singular_values_joint"]
 
-                # Prepare fusion arguments if available
                 fusion_args = {}
                 if "weights_face1_lbp" in res:
                     fusion_args["weights1_lbp"] = res["weights_face1_lbp"]
@@ -193,7 +190,6 @@ async def analyze(request: Request):
 
         decision = make_decision(best_metrics["composite_score"], threshold)
 
-        # Build Response
         S1 = best_result["svd_face1"]["S"]
         S2 = best_result["svd_face2"]["S"]
         S_joint_array = np.array(best_result["singular_values_joint"])

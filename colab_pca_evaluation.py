@@ -115,7 +115,6 @@ try:
                 if len(faces) > 0:
                     bbox = faces[0]
                     
-                    # Langsung fit (model sudah diload di luar loop)
                     ok, landmarks = facemark.fit(img, np.array([[bbox[0], bbox[1], bbox[2], bbox[3]]]))
                     
                     if ok and len(landmarks) > 0:
@@ -185,8 +184,7 @@ try:
     
     with zipfile.ZipFile("AAF.zip", "r") as archive:
         image_files = [f for f in archive.namelist() if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-        
-        # Batasi ke 2000 foto saja agar proses training tidak kehabisan RAM/terlalu lama (opsional)
+
         if len(image_files) > 2000:
             print(f"      Ditemukan {len(image_files)} gambar. Menggunakan 2000 sampel acak untuk training.")
             random.seed(42)
@@ -195,7 +193,6 @@ try:
         for f in image_files:
             try:
                 basename = os.path.basename(f)
-                # Format: 13322A80.jpg -> ID: 13322, Umur: 80
                 parts = basename.split('A')
                 if len(parts) == 2:
                     sub_id = int(parts[0]) + offset_aaf
@@ -210,8 +207,6 @@ try:
                 if img is None:
                     continue
 
-                # Untuk AAF, kita skip landmark detection berat agar cepat, cukup resize
-                # Karena AAF sudah memiliki versi 'aligned', asumsikan gambar cukup terpusat.
                 img_resized = cv2.resize(img, (100, 100))
                 X_aaf.append((img_resized.astype(np.float32) / 255.0).flatten())
                 y_aaf.append(sub_id)

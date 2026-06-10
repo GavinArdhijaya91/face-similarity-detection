@@ -630,10 +630,20 @@ if file1 and file2:
             f2_disp = result["face2_resized"]
             m_label = "Dataset: " + dataset_data.get("source", "")[:40]
         else:
-            result = analyze_two_faces(face1_proc, face2_proc)
-            f1_disp = face1_proc
-            f2_disp = face2_proc
-            m_label = "Mode: 2 gambar saja (tanpa dataset)"
+            olivetti_data, olivetti_es = get_eigenspace_olivetti(n_components)
+            if olivetti_es is not None:
+                result = analyze_two_faces_with_dataset(
+                    face1_proc, face2_proc, olivetti_es,
+                    apply_aging=apply_aging_vector, prob_asian=prob_asian
+                )
+                f1_disp = result["face1_resized"]
+                f2_disp = result["face2_resized"]
+                m_label = "Dataset: Olivetti Faces (fallback)"
+            else:
+                result = analyze_two_faces(face1_proc, face2_proc)
+                f1_disp = face1_proc
+                f2_disp = face2_proc
+                m_label = "Mode: 2 gambar saja (tanpa dataset)"
 
         w1 = result["weights_face1"]
         w2 = result["weights_face2"]

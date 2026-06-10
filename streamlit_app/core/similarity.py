@@ -147,13 +147,13 @@ def make_decision(
     cos = metrics["cosine_similarity_eigenspace"]
     is_same = score >= threshold
 
-    if cos >= THRESHOLDS["identical"]:
+    if score >= THRESHOLDS["identical"]:
         level, confidence, color = "Identik", "Sangat Tinggi", "#10b981"
-    elif cos >= THRESHOLDS["very_similar"]:
+    elif score >= THRESHOLDS["very_similar"]:
         level, confidence, color = "Sangat Mirip", "Tinggi", "#22c55e"
-    elif cos >= THRESHOLDS["similar"]:
+    elif score >= THRESHOLDS["similar"]:
         level, confidence, color = "Mirip", "Sedang", "#f59e0b"
-    elif cos >= THRESHOLDS["uncertain"]:
+    elif score >= THRESHOLDS["uncertain"]:
         level, confidence, color = "Kurang Mirip", "Rendah", "#f97316"
     else:
         level, confidence, color = "Tidak Mirip", "Sangat Rendah", "#ef4444"
@@ -161,7 +161,7 @@ def make_decision(
     euc = metrics["euclidean_distance_eigenspace"]
     ssim = metrics["ssim_pixel"]
     reasoning = [
-        f"Cosine similarity eigenspace: {cos:.2%} ({'tinggi' if cos >= 0.70 else 'rendah'})",
+        f"Composite score: {score:.2%} ({'tinggi' if score >= 0.70 else 'rendah'})",
         f"Euclidean distance: {euc:.3f} ({'berdekatan' if euc < 1.0 else 'berjauhan'})",
         f"SSIM pixel: {ssim:.2%}",
     ]

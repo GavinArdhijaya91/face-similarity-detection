@@ -11,6 +11,17 @@ HAAR_FRONTAL = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 HAAR_PROFILE = cv2.data.haarcascades + "haarcascade_profileface.xml"
 HAAR_EYE = cv2.data.haarcascades + "haarcascade_eye.xml"
 LBF_MODEL_PATH = "lbfmodel.yaml"
+_FACEMARK_LBF = None
+
+
+def _get_facemark():
+    global _FACEMARK_LBF
+    if _FACEMARK_LBF is None:
+        if hasattr(cv2, 'face') and os.path.exists(LBF_MODEL_PATH):
+            fm = cv2.face.createFacemarkLBF()
+            fm.loadModel(LBF_MODEL_PATH)
+            _FACEMARK_LBF = fm
+    return _FACEMARK_LBF
 
 
 def load_image_from_bytes(image_bytes: bytes) -> np.ndarray:
@@ -38,12 +49,10 @@ def align_face_lbf(gray_image: np.ndarray, bbox: Tuple[int, int, int, int], targ
     SDM (Supervised Descent Method) LBF Alignment.
     Memutar, menyesuaikan skala, dan mentranslasi wajah sehingga mata selalu jatuh pada koordinat piksel yang absolut.
     """
-    if not hasattr(cv2, 'face') or not os.path.exists(LBF_MODEL_PATH):
+    facemark = _get_facemark()
+    if facemark is None:
         return gray_image, False
-        
-    facemark = cv2.face.createFacemarkLBF()
-    facemark.loadModel(LBF_MODEL_PATH)
-    
+
     x, y, w, h = bbox
     ok, landmarks = facemark.fit(gray_image, np.array([[x, y, w, h]]))
     if not ok or len(landmarks) == 0:

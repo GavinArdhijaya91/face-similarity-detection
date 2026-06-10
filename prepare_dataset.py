@@ -1,16 +1,15 @@
 import os
 import sys
-
 import cv2
 import numpy as np
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-PATH_SAMPEL = "dataset_kelompok"  # Folder sumber foto kelompok
-PATH_SELFIE_OLD = "Selfie & ID Data - Sample"  # Dataset lama (untuk info saja)
-LABEL_MULAI = 40  # ID pertama anggota kelompok
-TARGET_SIZE = (100, 100)  # Ukuran output gambar
+PATH_SAMPEL = "dataset_kelompok"
+PATH_SELFIE = "Selfie & ID Data - Sample"
+LABEL_MULAI = 40
+TARGET_SIZE = (100, 100)
 NAMA_OUTPUT = "privasi_kelompok_100x100.npz"
 
 NAMA_DEWASA = ["dewasa", "adult", "baru", "new", "dewasa_bawaan"]
@@ -19,10 +18,6 @@ VALID_EXT = (".jpg", ".jpeg", ".png", ".webp")
 
 
 def cari_file_fleksibel(folder: str, kandidat_nama: list) -> str | None:
-    """
-    Cari file di folder berdasarkan daftar nama kandidat.
-    Case-insensitive, mendukung semua ekstensi gambar.
-    """
     semua_file = os.listdir(folder)
     for nama in kandidat_nama:
         for f in semua_file:
@@ -39,11 +34,6 @@ face_cascade = cv2.CascadeClassifier(cascade_path)
 
 
 def detect_and_crop_face(gray_img: np.ndarray) -> np.ndarray:
-    """
-    Mendeteksi wajah dari gambar dan mencoba melakukan LBF Alignment.
-    Jika LBF gagal, kembalikan crop area wajah dengan sedikit padding.
-    Jika wajah tidak terdeteksi, kembalikan gambar asli sebagai fallback.
-    """
     faces = face_cascade.detectMultiScale(
         gray_img, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
     )
@@ -52,58 +42,39 @@ def detect_and_crop_face(gray_img: np.ndarray) -> np.ndarray:
         aligned_face, success = align_face_lbf(gray_img, bbox, TARGET_SIZE)
         if success:
             return aligned_face, True
-
         x, y, w, h = bbox
         pad_x, pad_y = int(w * 0.1), int(h * 0.1)
         x1 = max(0, x - pad_x)
         y1 = max(0, y - pad_y)
         x2 = min(gray_img.shape[1], x + w + pad_x)
         y2 = min(gray_img.shape[0], y + h + pad_y)
-
         return gray_img[y1:y2, x1:x2], True
-
-    # Gagal deteksi
     return gray_img, False
 
 
 def baca_gambar_grayscale_dan_crop(img_path: str) -> tuple[np.ndarray | None, bool]:
-    """Baca gambar, konversi ke grayscale, lalu deteksi & crop wajahnya."""
     img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         try:
             from PIL import Image
-
             pil_img = Image.open(img_path).convert("L")
             img = np.array(pil_img)
         except Exception:
             pass
-
     wajah_terdeteksi = False
     if img is not None:
         img, wajah_terdeteksi = detect_and_crop_face(img)
-
     return img, wajah_terdeteksi
 
 
-def preprocess_dewasa(img: np.ndarray) -> np.ndarray:
-    """
-    Preprocessing untuk foto dewasa:
-    Grayscale → CLAHE → Resize 100x100 → Normalize [0,1] → Flatten
-    CLAHE diselaraskan dengan face_utils.py di Streamlit agar konsisten.
-    """
+def preprocess(img: np.ndarray, target_size=TARGET_SIZE) -> np.ndarray:
     clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(16, 16))
     img = clahe.apply(img)
-    img = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_AREA)
+    img = cv2.resize(img, target_size, interpolation=cv2.INTER_AREA)
     return (img.astype(np.float32) / 255.0).flatten()
 
 
 def preprocess_kecil(img: np.ndarray) -> np.ndarray:
-    """
-    Preprocessing untuk foto masa kecil (lintas usia):
-    Grayscale → CLAHE → Gaussian Blur → Resize 100x100 → Gamma → Normalize → Flatten
-    Gamma 1.2 = menerangkan foto lama yang cenderung gelap.
-    CLAHE diselaraskan dengan face_utils.py di Streamlit agar konsisten.
-    """
     clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(16, 16))
     img = clahe.apply(img)
     img = cv2.GaussianBlur(img, (3, 3), sigmaX=0.5)
@@ -112,105 +83,148 @@ def preprocess_kecil(img: np.ndarray) -> np.ndarray:
     return img.astype(np.float32).flatten()
 
 
-def augmentasi_untuk_uji(vec_dewasa: np.ndarray) -> np.ndarray:
-    """
-    Buat versi augmentasi foto dewasa sebagai data uji Skenario A.
-    Teknik: flip horizontal (cermin) + koreksi gamma ringan.
-    Ini mensimulasikan 'foto dewasa ke-2' yang tidak tersedia.
-    """
-    img = vec_dewasa.reshape(TARGET_SIZE)
-    flipped = np.fliplr(img)
-    aug = np.power(flipped, 1.0 / 1.1)  # sedikit lebih terang
-    return np.clip(aug, 0.0, 1.0).astype(np.float32).flatten()
+def preprocess_old(img: np.ndarray) -> np.ndarray:
+    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(16, 16))
+    img = clahe.apply(img)
+    img = cv2.GaussianBlur(img, (3, 3), sigmaX=0.5)
+    img = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_AREA)
+    img = np.power(img.astype(np.float32) / 255.0, 1.0 / 1.2)
+    return img.astype(np.float32).flatten()
+
+
+def load_selfie_images():
+    old_photos = []
+    new_photos = []
+    old_labels = []
+    new_labels = []
+    person_id = 0
+
+    for entry in sorted(os.listdir(PATH_SELFIE)):
+        person_dir = os.path.join(PATH_SELFIE, entry)
+        if not os.path.isdir(person_dir):
+            continue
+
+        # Docs = old / childhood photos
+        doc_dir = os.path.join(person_dir, "docs")
+        if os.path.isdir(doc_dir):
+            for fname in sorted(os.listdir(doc_dir)):
+                if not fname.lower().endswith(VALID_EXT):
+                    continue
+                img = cv2.imread(os.path.join(doc_dir, fname), cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    continue
+                face, _ = detect_and_crop_face(img)
+                if face is None or face.shape[0] < 30 or face.shape[1] < 30:
+                    face = img
+                old_photos.append(preprocess(face))
+                old_labels.append(person_id)
+
+        # Selfies = new / adult photos
+        selfie_dir = os.path.join(person_dir, "selfies")
+        if os.path.isdir(selfie_dir):
+            for fname in sorted(os.listdir(selfie_dir)):
+                if not fname.lower().endswith(VALID_EXT):
+                    continue
+                img = cv2.imread(os.path.join(selfie_dir, fname), cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    continue
+                face, _ = detect_and_crop_face(img)
+                if face is None or face.shape[0] < 30 or face.shape[1] < 30:
+                    face = img
+                new_photos.append(preprocess(face))
+                new_labels.append(person_id)
+
+        person_id += 1
+
+    return np.array(old_photos), np.array(new_photos), np.array(old_labels), np.array(new_labels), person_id
 
 
 def main():
-    print("  ENKRIPSI DATASET KELOMPOK ke .NPZ")
-    print("  Sistem Face Comparison berbasis PCA (PRD v3)")
+    print("  ENKRIPSI DATASET KELOMPOK ke .NPZ (Selfie & ID Pipeline)")
     print()
 
+    if not os.path.exists(PATH_SELFIE):
+        print(f"  ERROR: Folder '{PATH_SELFIE}' tidak ditemukan!")
+        sys.exit(1)
+
+    print(f"  Loading Selfie & ID Data - Sample...")
+    old_imgs, new_imgs, old_labels, new_labels, n_selfie_people = load_selfie_images()
+    print(f"    Old photos (docs/): {len(old_imgs)} dari {len(np.unique(old_labels))} orang")
+    print(f"    New photos (selfies/): {len(new_imgs)} dari {len(np.unique(new_labels))} orang")
+
+    # --- X_latih (gallery): 1 selfie per orang (pilih yg pertama) ---
+    X_latih_list = []
+    y_list = []
+    nama_gallery = []
+
+    for pid in range(n_selfie_people):
+        mask = new_labels == pid
+        idx = np.where(mask)[0]
+        if len(idx) == 0:
+            continue
+        X_latih_list.append(new_imgs[idx[0]])
+        y_list.append(pid)
+        nama_gallery.append(f"selfie_{pid}")
+
+    # --- X_test_sama (same-age): selfie ke-2 per orang (kalau ada) ---
+    X_test_sama_list = []
+    y_sama_list = []
+
+    for pid in range(n_selfie_people):
+        mask = new_labels == pid
+        idx = np.where(mask)[0]
+        if len(idx) >= 2:
+            X_test_sama_list.append(new_imgs[idx[1]])
+            y_sama_list.append(pid)
+
+    # --- X_test_lintas (cross-age): doc pertama per orang (kalau ada) ---
+    X_test_lintas_list = []
+    y_lintas_list = []
+
+    for pid in range(n_selfie_people):
+        mask = old_labels == pid
+        idx = np.where(mask)[0]
+        if len(idx) == 0:
+            continue
+        X_test_lintas_list.append(old_imgs[idx[0]])
+        y_lintas_list.append(pid)
+
+    # --- Tambah 18 anggota kelompok ke gallery + cross-age test ---
+    n_group_added = 0
     if not os.path.exists(PATH_SAMPEL):
-        print(f"  ERROR: Folder '{PATH_SAMPEL}' tidak ditemukan!")
-        sys.exit(1)
-
-    folder_list = sorted(
-        [
-            f
-            for f in os.listdir(PATH_SAMPEL)
+        print(f"  Warning: '{PATH_SAMPEL}' tidak ditemukan, skip group members")
+    else:
+        for idx, nama_folder in enumerate(sorted([
+            f for f in os.listdir(PATH_SAMPEL)
             if os.path.isdir(os.path.join(PATH_SAMPEL, f)) and not f.startswith(".")
-        ]
-    )
+        ])):
+            path_orang = os.path.join(PATH_SAMPEL, nama_folder)
+            path_dewasa = cari_file_fleksibel(path_orang, NAMA_DEWASA)
+            path_kecil = cari_file_fleksibel(path_orang, NAMA_KECIL)
 
-    print(f"  Sumber          : {PATH_SAMPEL}/")
-    print(f"  Orang ditemukan : {len(folder_list)}")
-    print(f"  Urutan folder   : {folder_list}")
-    print()
+            if not path_dewasa or not path_kecil:
+                continue
 
-    wajah_dewasa_latih = []
-    wajah_dewasa_uji = []
-    wajah_kecil_uji = []
-    labels = []
-    nama_anggota = []  # simpan nama asli untuk KAMUS_NAMA di Colab
+            img_dewasa, ok_d = baca_gambar_grayscale_dan_crop(path_dewasa)
+            img_kecil, ok_k = baca_gambar_grayscale_dan_crop(path_kecil)
+            if img_dewasa is None or img_kecil is None:
+                continue
 
-    print(f"  {'No':<4} {'Nama':<14} {'ID':<6} {'Dewasa':<20} {'Kecil':<20} Status")
-    print("  " + "-" * 68)
+            pid = LABEL_MULAI + idx
+            # Dewasa → gallery
+            X_latih_list.append(preprocess(img_dewasa))
+            y_list.append(pid)
+            nama_gallery.append(nama_folder)
+            # Kecil → cross-age test (label sama)
+            X_test_lintas_list.append(preprocess(img_kecil))
+            n_group_added += 1
 
-    for idx, nama_folder in enumerate(folder_list):
-        label_id = LABEL_MULAI + idx
-        path_orang = os.path.join(PATH_SAMPEL, nama_folder)
-
-        path_dewasa = cari_file_fleksibel(path_orang, NAMA_DEWASA)
-        path_kecil = cari_file_fleksibel(path_orang, NAMA_KECIL)
-
-        file_d = os.path.basename(path_dewasa) if path_dewasa else "-- TIDAK ADA --"
-        file_k = os.path.basename(path_kecil) if path_kecil else "-- TIDAK ADA --"
-        status = "OK" if (path_dewasa and path_kecil) else "SKIP"
-
-        print(
-            f"  {idx:<4} {nama_folder:<14} {label_id:<6} {file_d:<20} {file_k:<20} {status}"
-        )
-
-        if not path_dewasa or not path_kecil:
-            continue
-
-        img_dewasa, ok_dewasa = baca_gambar_grayscale_dan_crop(path_dewasa)
-        img_kecil, ok_kecil = baca_gambar_grayscale_dan_crop(path_kecil)
-
-        if img_dewasa is None or img_kecil is None:
-            print(f"        => GAGAL membaca gambar, lewati.")
-            continue
-            
-        if not ok_dewasa:
-            print(f"        [!] Peringatan: Haar Cascade GAGAL deteksi muka di {file_d} (Memakai gambar utuh)")
-        if not ok_kecil:
-            print(f"        [!] Peringatan: Haar Cascade GAGAL deteksi muka di {file_k} (Memakai gambar utuh)")
-
-        h_d, w_d = img_dewasa.shape[:2]
-        h_k, w_k = img_kecil.shape[:2]
-        if h_d < 50 or w_d < 50 or h_k < 50 or w_k < 50:
-            print(f"        => Resolusi terlalu kecil, lewati.")
-            continue
-
-        vec_dewasa_latih = preprocess_dewasa(img_dewasa)
-        vec_dewasa_uji = augmentasi_untuk_uji(vec_dewasa_latih)
-        vec_kecil = preprocess_kecil(img_kecil)
-
-        wajah_dewasa_latih.append(vec_dewasa_latih)
-        wajah_dewasa_uji.append(vec_dewasa_uji)
-        wajah_kecil_uji.append(vec_kecil)
-        labels.append(label_id)
-        nama_anggota.append(nama_folder)
-
-    print()
-
-    if len(labels) == 0:
-        print("  ERROR: Tidak ada data berhasil diproses!")
-        sys.exit(1)
-
-    X_latih = np.array(wajah_dewasa_latih, dtype=np.float32)
-    X_test_sama = np.array(wajah_dewasa_uji, dtype=np.float32)
-    X_test_lintas = np.array(wajah_kecil_uji, dtype=np.float32)
-    y = np.array(labels, dtype=np.int32)
+    # --- Convert ke numpy ---
+    X_latih = np.array(X_latih_list, dtype=np.float32)
+    X_test_sama = np.array(X_test_sama_list, dtype=np.float32) if X_test_sama_list else np.empty((0, 10000), dtype=np.float32)
+    X_test_lintas = np.array(X_test_lintas_list, dtype=np.float32)
+    y = np.array(y_list, dtype=np.int32)
+    n_total_people = n_selfie_people + n_group_added
 
     np.savez(
         NAMA_OUTPUT,
@@ -218,43 +232,23 @@ def main():
         X_test_sama=X_test_sama,
         X_test_lintas=X_test_lintas,
         y=y,
-        nama_anggota=np.array(nama_anggota),  # tambahan: nama asli
+        nama_anggota=np.array(nama_gallery),
     )
 
+    print()
     print("  BERHASIL! File tersimpan.")
     print(f"  Output file      : {NAMA_OUTPUT}")
-    print(f"  Jumlah anggota   : {len(y)} orang")
-    print()
-    print(f"  {'ID':<6} {'Nama'}")
-    print(f"  {'-' * 25}")
-    for i, (lbl, nama) in enumerate(zip(y, nama_anggota)):
-        print(f"  {lbl:<6} {nama}")
-
     print()
     print(f"  Shapes:")
-    print(f"    X_latih (training)       : {X_latih.shape}")
-    print(f"    X_test_sama  (Skenario A): {X_test_sama.shape}  <- augmentasi flip")
-    print(f"    X_test_lintas (Skenario B): {X_test_lintas.shape}  <- foto kecil")
-
-    n_lama = 0
-    if os.path.exists(PATH_SELFIE_OLD):
-        n_lama = len(
-            [
-                f
-                for f in os.listdir(PATH_SELFIE_OLD)
-                if os.path.isdir(os.path.join(PATH_SELFIE_OLD, f))
-            ]
-        )
+    print(f"    X_latih (gallery)          : {X_latih.shape}")
+    print(f"    X_test_sama (same-age)     : {X_test_sama.shape}")
+    print(f"    X_test_lintas (cross-age)  : {X_test_lintas.shape}")
+    print(f"    y (labels)                 : {y.shape}")
     print()
-    if n_lama > 0:
-        print(f"  Info: Dataset lama '{PATH_SELFIE_OLD}' tersedia ({n_lama} orang).")
-        print(
-            f"        Di Colab, aktifkan USE_DATASET_LAMA = True untuk basis training lebih kaya."
-        )
-    print()
-    print("  LANGKAH SELANJUTNYA:")
-    print(f"    1. Upload '{NAMA_OUTPUT}' ke Google Colab")
-    print(f"    2. Jalankan colab_pca_evaluation.py")
+    print(f"  Komposisi:")
+    print(f"    Gallery: {n_selfie_people} selfies + {n_group_added} group dewasa = {len(X_latih)}")
+    print(f"    Cross-age test: {len(X_test_lintas)} (Selfie & ID docs + group kecil)")
+    print(f"    Random baseline: 1/{n_total_people} = {1/n_total_people*100:.2f}%")
 
 
 if __name__ == "__main__":
