@@ -712,29 +712,34 @@ plt.savefig("pca_variance.png", dpi=120, bbox_inches="tight")
 plt.show()
 print("   Disimpan: pca_variance.png")
 
-fig, axes = plt.subplots(3, n_anggota, figsize=(3 * n_anggota, 9))
-if n_anggota == 1:
+indices_kelompok = [idx for idx in range(n_anggota) if not KAMUS_NAMA.get(int(y_kel[idx]), "").startswith("selfie_")]
+if len(indices_kelompok) == 0:
+    indices_kelompok = list(range(min(10, n_anggota)))
+
+n_plot = len(indices_kelompok)
+fig, axes = plt.subplots(3, n_plot, figsize=(3 * n_plot, 9))
+if n_plot == 1:
     axes = axes.reshape(3, 1)
 fig.suptitle(
     "Rekonstruksi Wajah: Dewasa Training vs PCA vs Foto Kecil",
     fontsize=12,
     fontweight="bold",
 )
-for i in range(n_anggota):
+for col_idx, i in enumerate(indices_kelompok):
     nama = KAMUS_NAMA.get(int(y_kel[i]), f"Anggota {i + 1}")
     img_d = X_latih_kel[i].reshape(100, 100)
     img_r = pca.inverse_transform(pca.transform(X_latih_kel[i : i + 1])).reshape(
         100, 100
     )
     img_k = X_test_lintas[i].reshape(100, 100)
-    axes[0, i].imshow(img_d, cmap="gray")
-    axes[0, i].set_title(f"{nama}\nDewasa", fontsize=7)
-    axes[1, i].imshow(np.clip(img_r, 0, 1), cmap="gray")
-    axes[1, i].set_title("Rekon PCA", fontsize=7)
-    axes[2, i].imshow(img_k, cmap="gray")
-    axes[2, i].set_title("Foto Kecil", fontsize=7)
+    axes[0, col_idx].imshow(img_d, cmap="gray")
+    axes[0, col_idx].set_title(f"{nama}\nDewasa", fontsize=7)
+    axes[1, col_idx].imshow(np.clip(img_r, 0, 1), cmap="gray")
+    axes[1, col_idx].set_title("Rekon PCA", fontsize=7)
+    axes[2, col_idx].imshow(img_k, cmap="gray")
+    axes[2, col_idx].set_title("Foto Kecil", fontsize=7)
     for row in range(3):
-        axes[row, i].axis("off")
+        axes[row, col_idx].axis("off")
 plt.tight_layout()
 plt.savefig("rekonstruksi.png", dpi=100, bbox_inches="tight")
 plt.show()

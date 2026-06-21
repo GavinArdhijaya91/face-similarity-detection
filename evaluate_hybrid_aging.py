@@ -175,7 +175,6 @@ if acc_hybrid >= acc_aaf and acc_hybrid >= acc_fgnet:
     print(" KESIMPULAN: Pendekatan Hybrid Vector memberikan performa terbaik/seimbang.")
     print(" Bukti matematis bahwa kombinasi linear (Aljabar Linear) efektif mengatasi dataset bias.")
 
-
 # ==========================================
 # PEMBUATAN GRAFIK VISUALISASI
 # ==========================================
