@@ -223,8 +223,8 @@ README.md
 docs/
 AGENTS.md
 
-# Root-level files yang hanya untuk dev lokal
-requirements.txt
+# Root-level requirements.txt (tidak perlu di-publish, tiap app punya sendiri)
+/requirements.txt
 
 # Cache tools
 .ruff_cache/
