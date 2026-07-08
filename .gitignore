@@ -219,7 +219,6 @@ lbfmodel.yaml
 .sixth/
 
 # Draft documentation — hanya publish kode yang jadi
-README.md
 docs/
 AGENTS.md
 
@@ -227,4 +226,4 @@ AGENTS.md
 /requirements.txt
 
 # Cache tools
-.ruff_cache/
+.ruff_cache/
