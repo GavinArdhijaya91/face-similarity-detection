@@ -216,5 +216,15 @@ All-Age-Faces Dataset.zip
 All-Age-Faces Dataset/
 lbfmodel.yaml
 
-
 .sixth/
+
+# Draft documentation — hanya publish kode yang jadi
+README.md
+docs/
+AGENTS.md
+
+# Root-level files yang hanya untuk dev lokal
+requirements.txt
+
+# Cache tools
+.ruff_cache/
