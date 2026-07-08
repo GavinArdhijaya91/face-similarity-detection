@@ -203,17 +203,9 @@ test_core.py
 
 dataset_kelompok/
 Selfie & ID Data - Sample/
-PCA.md
-PRD_FaceComparison_PCA_v3.md
 *.npz
 privasi_kelompok_100x100.npz
 !pretrained_eigenspace.npz
-
-# PCA Evaluation outputs
-eigenfaces.png
-pca_variance.png
-rekonstruksi.png
-perbandingan_akurasi.png
 FGNET.zip
 FGNET/
 lbfmodel.yaml
@@ -224,5 +216,5 @@ All-Age-Faces Dataset.zip
 All-Age-Faces Dataset/
 lbfmodel.yaml
 
-AGENTS.md
+
 .sixth/
