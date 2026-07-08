@@ -1,0 +1,37 @@
+name: Keep Streamlit App Alive
+
+on:
+  schedule:
+    - cron: "0 0 */2 * *"
+
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping Streamlit App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping app agar tidak sleep
+        run: |
+          echo "Pinging Streamlit app..."
+
+          # GANTI URL INI dengan URL Streamlit app kamu!
+          # Contoh: https://face-similarity-detection.streamlit.app
+          APP_URL="https://face-verification-v1.streamlit.app/"
+
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            --max-time 60 \
+            --retry 3 \
+            --retry-delay 10 \
+            "$APP_URL")
+
+          echo "HTTP Status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "App berhasil di-ping! Status: $HTTP_STATUS"
+          else
+            echo "App merespons dengan status: $HTTP_STATUS"
+            echo "App mungkin sedang sleep atau ada masalah lain."
+            # Kita tidak fail workflow karena Streamlit kadang redirect
+          fi
